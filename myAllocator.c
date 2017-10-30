@@ -304,11 +304,11 @@ BlockPrefix_t *nextFit(size_t s) {	/* find nextfirst block with usable space > s
   currPrefix = nextPrefix;//update current prefix to next prefix
   while (nextPrefix != p) {//check that the current prexit is not actually the same as the next one (i.e. have not reached last block available)
     if(!nextPrefix){
-      p = arenaBegin;
+      return (void *)0; //return failure if there is not next prefix to store from
     }
-    if (!p->allocated && computeUsableSpace(p) >= s)
-      return p;
-    p = getNextPrefix(nextPrefix); //return next prefix
+    if (!nextPrefix->allocated && computeUsableSpace(nextPrefix) >= s)
+      return nextPrefix;
+    nextPrefix = getNextPrefix(nextPrefix); //return next prefix
   }
   return growArena(s);
 }

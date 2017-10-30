@@ -65,7 +65,7 @@ BlockPrefix_t *makeFreeBlock(void *addr, size_t size) {
   p->allocated = 0;
   return p;
 }
-
+BlockPrefix_t *currPrefix;//glbal variable to keep track of the current prefix for nextFit
 /* lowest & highest address in arena (global vars) */
 BlockPrefix_t *arenaBegin = (void *)0;
 void *arenaEnd = 0;
@@ -268,9 +268,7 @@ void *resizeRegion(void *r, size_t newSize) {
     
     if(totalSize >= newSize){
       
-     
-      //coalescePrev(nextPrefix);
-       
+  
       void *freeSliverStart = (void *)currPrefix + prefixSize + suffixSize + newSize;
       void *freeSliverEnd = (void *) nextSuffix;
       makeFreeBlock(freeSliverStart, freeSliverEnd - freeSliverStart);
@@ -282,11 +280,10 @@ void *resizeRegion(void *r, size_t newSize) {
       // return prefixToRegion(currPrefix);
     
     }
- 
     return r;
   }
   
-  //Code to be removed
+ 
   else {			/* allocate new region & copy old data */
     char *o = (char *)r;	/* treat both regions as char* */
     char *n = (char *)firstFitAllocRegion(newSize); 
@@ -295,27 +292,36 @@ void *resizeRegion(void *r, size_t newSize) {
       n[i] = o[i];
     freeRegion(o);		/* free old region */
     return (void *)n;
-  }//code to be removed *end*
+  }
   
 }
 
-
-BlockPrefix_t *nextFit(size_t s) {	/* find first block with usable space > s */
+//nextFit implemented for nextFitAllocRegion
+BlockPrefix_t *nextFit(size_t s) {	/* find nextfirst block with usable space > s */
   
-  BlockPrefix_t *p = getNextPrefix(arenaBegin);
-    while (p) {
-	if (!p->allocated && computeUsableSpace(p) >= s)
-	    return p;
-	p = getNextPrefix(p);
+  BlockPrefix_t *p = currPrefix;
+  BlockPrefix_t *nextPrefix = getNextPrefix(currPrefix);
+  currPrefix = nextPrefix;//update current prefix to next prefix
+  while (nextPrefix != p) {//check that the current prexit is not actually the same as the next one (i.e. have not reached last block available)
+    if(!nextPrefix){
+      p = arenaBegin;
     }
-    return growArena(s);
+    if (!p->allocated && computeUsableSpace(p) >= s)
+      return p;
+    p = getNextPrefix(nextPrefix); //return next prefix
+  }
+  return growArena(s);
 }
 
+//nextFitAllocRegion will check for the next available region to store 
 void *nextFitAllocRegion(size_t s) {
   size_t asize = align8(s);
   BlockPrefix_t *p;
-  if (arenaBegin == 0)		/* arena uninitialized? */
+  // BlockPrefix_t *currPrefix;//keep track of the current prefix
+  if (arenaBegin == 0){		/* arena uninitialized? */
     initializeArena();
+    currPrefix = arenaBegin;
+  }
   p = nextFit(s);		/* find a block */
   if (p) {			/* found a block */
     size_t availSize = computeUsableSpace(p);
